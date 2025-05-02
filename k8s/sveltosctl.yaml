@@ -1,0 +1,190 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: projectsveltos
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sveltosctl
+  namespace: projectsveltos
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sveltosctl
+  namespace: projectsveltos
+  labels:
+    app: sveltosctl
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: sveltosctl
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sveltosctl
+  namespace: projectsveltos
+  labels:
+    app.kubernetes.io/name: sveltosctl
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sveltosctl
+  replicas: 1
+  serviceName: "sveltosctl"
+  minReadySeconds: 10
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sveltosctl
+    spec:
+      serviceAccountName: sveltosctl
+      containers:
+      - name: sveltosctl
+        image: projectsveltos/sveltosctl-amd64:v0.11.0
+        imagePullPolicy: IfNotPresent
+        command:
+          - /sveltosctl
+        args:
+          - snapshot
+          - reconciler
+          - v=5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /collection
+          name: collection
+        - mountPath: /etc/localtime
+          name: tz-config
+        - mountPath: /tmp
+          name: tmp
+      volumes:
+      - emptyDir: {}
+        name: tmp
+      - hostPath:
+          path: /usr/share/zoneinfo/America/Los_Angeles
+        name: tz-config
+  volumeClaimTemplates:
+  - metadata:
+      name: collection
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "standard"
+      resources:
+        requests:
+          storage: 1Gi
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: sveltosctl
+rules:
+  - apiGroups: [""]
+    resources:
+      - configmaps
+      - secrets
+      - namespaces
+    verbs:
+      - get
+      - list
+      - create
+      - update
+  - apiGroups: ["config.projectsveltos.io"]
+    resources:
+      - clusterconfigurations
+      - clusterreports
+    verbs:
+      - get
+      - list
+  - apiGroups: ["config.projectsveltos.io"]
+    resources:
+      - clusterprofiles
+      - profiles
+    verbs:
+      - get
+      - list
+      - create
+      - update
+  - apiGroups: ["lib.projectsveltos.io"]
+    resources:
+      - classifiers
+      - eventsources
+      - healthchecks
+      - healthcheckreports
+      - eventtriggers
+    verbs:
+      - get
+      - list
+      - update
+  - apiGroups: ["lib.projectsveltos.io"]
+    resources:
+      - sveltosclusters
+    verbs:
+      - get
+      - list
+      - update
+      - watch
+  - apiGroups: ["utils.projectsveltos.io"]
+    resources:
+      - snapshots
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups: ["utils.projectsveltos.io"]
+    resources:
+    - snapshots/finalizers
+    verbs:
+    - patch
+    - update      
+  - apiGroups: ["utils.projectsveltos.io"]
+    resources:
+      - snapshots/status
+    verbs:
+      - '*'
+  - apiGroups: ["cluster.x-k8s.io"]
+    resources:
+      - clusters
+      - machines
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups: ["lib.projectsveltos.io"]
+    resources:
+      - rolerequests
+      - rolerequests/status
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: sveltosctl
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: sveltosctl
+subjects:
+- kind: ServiceAccount
+  name: sveltosctl
+  namespace: projectsveltos 

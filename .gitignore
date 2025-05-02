@@ -1,0 +1,26 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# tmp files
+*.tmp
+
+# vim files
+*.swp
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+out.json
+
+# Needed tools
+hack/tools/bin/
+
+bin/
+
+manifest/manifest.yaml-e
